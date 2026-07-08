@@ -541,6 +541,8 @@
   .card-feed-row {
     margin-top: 10px;
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     justify-content: flex-end;
   }
   .btn-feed-ai {
@@ -561,6 +563,15 @@
     border-color: var(--accent);
     background: #fff;
     transform: translateY(-1px);
+  }
+  .btn-feed-full {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #bbf7d0;
+  }
+  .btn-feed-full:hover {
+    border-color: #10b981;
+    color: #065f46;
   }
 
   /* ============ EMPTY STATE ============ */
@@ -1039,7 +1050,7 @@
             <li>支持本地文件入库：PDF、扫描 PDF OCR、Word、Excel/CSV、PPT、图片、txt、md。</li>
             <li>按目录、标签、关键词搜索资料。</li>
             <li>卡片、列表、AI参考三种视图切换。</li>
-            <li>每条知识都有“投喂AI”，复制精简上下文。</li>
+            <li>每条知识都有“投喂AI”，复制精简上下文；长视频可用“全文投喂AI”复制完整字幕。</li>
             <li>支持添加笔记、追加内容、删除到回收站。</li>
             <li>支持本地视频回放和删除本地视频文件。</li>
             <li>换电脑后，扫描 PDF 和图片 OCR 需要重新安装 Tesseract、中文语言包、pytesseract 和 Poppler。</li>
@@ -1050,7 +1061,7 @@
           <ul>
             <li>查资料：用顶部搜索框输入标题、标签或关键词。</li>
             <li>按分类：点击标签区里的“目录：分类名”。</li>
-            <li>投喂单条：点卡片、列表或 AI参考里的“投喂AI”。</li>
+            <li>投喂单条：点卡片、列表或 AI参考里的“投喂AI”；长视频深读用“全文投喂AI”。</li>
             <li>批量投喂：用“复制当前筛选给AI”“按目录投喂”“按主题投喂”。</li>
           </ul>
         </div>
@@ -1081,7 +1092,7 @@
           <ul>
             <li>投喂内容包含标题、路径、分类、标签、摘要和 AI快速参考。</li>
             <li>默认不复制完整转录，避免上下文过长。</li>
-            <li>需要追溯原文时，再打开笔记或视频查看完整内容。</li>
+            <li>需要让 AI 深读长视频时，点击“全文投喂AI”复制完整字幕/转录。</li>
           </ul>
         </div>
       </div>
@@ -1583,7 +1594,8 @@ function filter() {
       aiReferenceText(n).toLowerCase().includes(query) ||
       (n.filePath || '').toLowerCase().includes(query) ||
       (n.tags || []).some(t => t.toLowerCase().includes(query)) ||
-      n.transcript.toLowerCase().includes(query)
+      (n.transcript || '').toLowerCase().includes(query) ||
+      (n.fullTranscript || '').toLowerCase().includes(query)
     );
   }
 
@@ -1665,6 +1677,7 @@ function renderCards(notes) {
         </div>
         <div class="card-feed-row">
           <button class="btn-feed-ai" onclick="event.stopPropagation();copyNoteForAI('${n.id}')">投喂AI</button>
+          ${n.fullTranscript ? `<button class="btn-feed-ai btn-feed-full" onclick="event.stopPropagation();copyFullTranscriptForAI('${n.id}')">全文投喂AI</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -1704,7 +1717,10 @@ function renderTable(notes) {
             <td>${n.duration || '-'}</td>
             <td>${(n.knowledgePoints || []).length}</td>
             <td>${n.date}</td>
-            <td><button class="btn-feed-ai" onclick="event.stopPropagation();copyNoteForAI('${n.id}')">投喂AI</button></td>
+            <td>
+              <button class="btn-feed-ai" onclick="event.stopPropagation();copyNoteForAI('${n.id}')">投喂AI</button>
+              ${n.fullTranscript ? `<button class="btn-feed-ai btn-feed-full" onclick="event.stopPropagation();copyFullTranscriptForAI('${n.id}')">全文</button>` : ''}
+            </td>
           </tr>
         `).join('')}
       </tbody>
@@ -1768,6 +1784,7 @@ function renderAIView(notes) {
       <div class="ai-ref-text"><strong>可引用结论：</strong>${escapeHtml(conclusion)}</div>
       <div class="ai-ref-text"><strong>适合问题：</strong>${escapeHtml(questions || '（暂无）')}</div>
       <button class="btn-feed-ai" onclick="event.stopPropagation();copyNoteForAI('${n.id}')">投喂AI</button>
+      ${n.fullTranscript ? `<button class="btn-feed-ai btn-feed-full" onclick="event.stopPropagation();copyFullTranscriptForAI('${n.id}')">全文投喂AI</button>` : ''}
       <div class="ai-ref-path">${escapeHtml(n.filePath || '')}</div>
     </div>`;
   }).join('');
@@ -1856,6 +1873,20 @@ function openNote(id) {
     ? '💬 补充内容'
     : (documentSourceTypes.includes(note.sourceType) ? '💬 完整提取文字' : '💬 完整转录');
 
+  const fullTranscriptHTML = note.fullTranscript ? `
+    <div class="info-box info-box-success" style="margin:14px 0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <strong>📜 完整字幕可投喂 AI</strong>
+          <div style="font-size:0.8rem;color:var(--text-soft);margin-top:4px;">
+            ${escapeHtml(note.fullTranscriptName || '完整字幕文件')} · ${Number(note.fullTranscriptChars || note.fullTranscript.length).toLocaleString()} 字符
+          </div>
+        </div>
+        <button class="btn-sm btn-sm-indigo" onclick="event.stopPropagation();copyFullTranscriptForAI('${note.id}')">全文投喂AI</button>
+      </div>
+      <code style="display:block;word-break:break-all;opacity:0.75;margin-top:8px;">${escapeHtml(note.fullTranscriptPath || '')}</code>
+    </div>` : '';
+
   // 追加内容区块 — 支持多次追加
   let appendHTML = '';
   if (note.appendBlocks && note.appendBlocks.length) {
@@ -1914,6 +1945,7 @@ function openNote(id) {
     ${kpHTML}
     ${imagesHTML}
     <h3>${transcriptTitle}</h3>
+    ${fullTranscriptHTML}
     ${note.transcript ? note.transcript.split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p)}</p>`).join('') : '<p style="color:var(--text-secondary);">（暂无）</p>'}
     ${linksHTML}
     ${quotesHTML}
@@ -2127,6 +2159,40 @@ function copyNoteForAI(id) {
   const note = NOTES.find(n => n.id === id);
   if (!note) return;
   copyTextWithToast(formatAIContext(note), '已复制这篇笔记的 AI 快速参考');
+}
+
+function formatFullTranscriptContext(note) {
+  const fullText = note.fullTranscript || note.transcript || '';
+  const sourcePath = note.fullTranscriptPath || note.filePath || '';
+  return [
+    `# ${note.title}`,
+    '',
+    '以下是图文视频知识库中的完整字幕/转录资料。请先通读全文，再结合前面的摘要和 AI快速参考回答问题；不要只看摘要。',
+    '',
+    '## 资料信息',
+    `- 本地笔记：${note.filePath || ''}`,
+    `- 完整字幕文件：${sourcePath}`,
+    `- 来源链接：${note.source || ''}`,
+    `- 分类：${note.category || ''}`,
+    `- 标签：${(note.tags || []).join('、')}`,
+    `- 摘要：${note.summary || ''}`,
+    '',
+    '## AI快速参考',
+    formatAIContext(note),
+    '',
+    '## 完整字幕/转录',
+    fullText || '（暂无完整字幕/转录）',
+  ].join('\n');
+}
+
+function copyFullTranscriptForAI(id) {
+  const note = NOTES.find(n => n.id === id);
+  if (!note) return;
+  if (!note.fullTranscript && !note.transcript) {
+    alert('这篇笔记还没有完整字幕或转录。');
+    return;
+  }
+  copyTextWithToast(formatFullTranscriptContext(note), '已复制完整字幕投喂包');
 }
 
 function copyNotesForAI(notes, title) {

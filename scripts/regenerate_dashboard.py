@@ -111,6 +111,65 @@ def extract_ai_reference(body: str, fallback: dict) -> dict:
     return ref
 
 
+def resolve_raw_document_link(link: str, note_path: Path, vault_root: Path) -> Path | None:
+    """Resolve a note link that points to raw/文档文件."""
+    clean = (link or "").strip().strip('"').strip("'")
+    if not clean:
+        return None
+    clean = clean.split("#", 1)[0].replace("\\", "/")
+
+    candidates: list[Path] = []
+    if clean.startswith("../"):
+        candidates.append((note_path.parent / clean).resolve())
+
+    marker = "raw/文档文件/"
+    if marker in clean:
+        name = clean.split(marker, 1)[1].lstrip("/")
+        candidates.append(vault_root / DOMAIN_DIR / "raw" / "文档文件" / name)
+
+    vault_prefix = str(vault_root).replace("\\", "/")
+    if clean.startswith(vault_prefix):
+        candidates.append(Path(clean))
+
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    return None
+
+
+def extract_full_transcript_file(body: str, note_path: Path, vault_root: Path) -> dict:
+    """Find and read the best full transcript file linked from a note."""
+    links: list[str] = []
+    links.extend(re.findall(r'\[\[([^\]]*raw/文档文件/[^\]]+)\]\]', body))
+    links.extend(re.findall(r'\[[^\]]+\]\(([^)]*raw/文档文件/[^)]+)\)', body))
+
+    preferred_suffixes = (".transcript.txt", ".raw.txt", ".txt", ".vtt")
+    resolved: list[Path] = []
+    for link in links:
+        path = resolve_raw_document_link(link, note_path, vault_root)
+        if path and path.suffix.lower() in (".txt", ".vtt"):
+            resolved.append(path)
+
+    resolved = sorted(
+        dict.fromkeys(resolved),
+        key=lambda p: next((i for i, suffix in enumerate(preferred_suffixes) if p.name.lower().endswith(suffix)), 99),
+    )
+
+    for path in resolved:
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace").strip()
+        except Exception:
+            continue
+        if text:
+            return {
+                "text": text,
+                "path": str(path.absolute()),
+                "name": path.name,
+                "chars": len(text),
+            }
+    return {"text": "", "path": "", "name": "", "chars": 0}
+
+
 def extract_knowledge_points(body: str) -> list[dict]:
     pattern = r'###\s*知识点\s*[①②③④⑤⑥⑦⑧⑨⑩\d]+[：:]\s*(.+?)\n\n\*\*概念\*\*[：:]\s*(.+?)\n\n\*\*要点\*\*[：:]\s*\n((?:\s*-.*?\n)*)'
     matches = re.findall(pattern, body, re.DOTALL)
@@ -275,7 +334,7 @@ def parse_note(filepath: Path, vault_root: Path) -> dict:
     # 转录
     transcript = ""
     t_match = re.search(
-        r'##\s*💬\s*完整转录\s*\n+(.*?)(?:\n---\n|\n##\s*🔗|\n##\s*💡|\n\n\*由|\Z)',
+        r'##\s*💬\s*(?:完整转录|整理稿与完整字幕)\s*\n+(.*?)(?:\n---\n|\n##\s*🔗|\n##\s*💡|\n\n\*由|\Z)',
         body, re.DOTALL)
     if t_match:
         transcript = t_match.group(1).strip()
@@ -285,6 +344,8 @@ def parse_note(filepath: Path, vault_root: Path) -> dict:
             body, re.DOTALL)
         if extracted_match:
             transcript = extracted_match.group(1).strip()
+
+    full_transcript = extract_full_transcript_file(body, filepath, vault_root)
 
     # 视频路径
     video_match = re.search(r'\[\[\.\./\.\./raw/视频文件/(.*?\.mp4)\]\]', body)
@@ -333,6 +394,10 @@ def parse_note(filepath: Path, vault_root: Path) -> dict:
         "video": video_path,
         "thumbnail": thumb_path,
         "transcript": transcript,
+        "fullTranscript": full_transcript["text"],
+        "fullTranscriptPath": full_transcript["path"],
+        "fullTranscriptName": full_transcript["name"],
+        "fullTranscriptChars": full_transcript["chars"],
         "knowledgePoints": kps,
         "goldenQuotes": quotes,
         "audience": audience,
