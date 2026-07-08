@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+config.json
+scripts/videos/
+work/
+V3升级交接说明.md
+V4升级交接说明.md
+*.tmp
+*.bak

@@ -1,0 +1,4 @@
+interface:
+  display_name: "图文视频知识库 v4.0 中文专享版"
+  short_description: "视频、图文、本地文档与笔记入库，生成 AI 可投喂知识库"
+  default_prompt: "Use $video-knowledge to ingest a local video, local document, or link into 图文视频知识库 v4.0 中文专享版."
