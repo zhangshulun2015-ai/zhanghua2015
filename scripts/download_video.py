@@ -193,6 +193,19 @@ def ytdlp_cmd() -> list[str]:
         return [exe]
     return [sys.executable, "-m", "yt_dlp"]
 
+
+def run_ytdlp_command(cmd: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+        cwd=str(SCRIPT_DIR),
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+
 YTDLP_PLATFORM_CONFIG = {
     "bilibili": {
         "name": "B站",
@@ -260,8 +273,7 @@ def download_ytdlp(
     proxy_hint = f", proxy={proxy}" if proxy else ""
     print(f"  命令: yt-dlp -o '{output_template}' [{auth_hint}{proxy_hint}]")
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, cwd=str(SCRIPT_DIR),
-                                env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        result = run_ytdlp_command(cmd)
     except subprocess.TimeoutExpired:
         print("❌ 下载超时（5分钟）")
         return None
@@ -293,8 +305,7 @@ def download_ytdlp(
                 continue
             retry_cmd.append(item)
         try:
-            result = subprocess.run(retry_cmd, capture_output=True, text=True, timeout=300, cwd=str(SCRIPT_DIR),
-                                    env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+            result = run_ytdlp_command(retry_cmd)
             output_text = result.stdout + result.stderr
         except subprocess.TimeoutExpired:
             print("❌ 无 Cookie 下载超时（5分钟）")

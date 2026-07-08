@@ -89,6 +89,13 @@ python scripts/regenerate_dashboard.py --vault <知识库根路径>
 
 支持抖音、B站、小红书、X。抖音依赖 Playwright 拦截视频流；其他平台优先用 yt-dlp 和 Chrome Cookie。
 
+#### 平台验证结论
+
+- 小红书：公开视频可直接使用分享链接下载或提取图文；不强制登录。若 Chrome Cookie 被占用，脚本会自动无 Cookie 重试公开视频。
+- B站：公开视频可直接使用复制链接下载；不强制登录。若 Chrome Cookie 被占用，脚本会自动无 Cookie 重试公开视频。
+- 抖音：已验证可用；部分链接可能弹登录、滑块或风控验证，遇到验证时需要先在浏览器完成。
+- X：已验证可用；公开内容可尝试直接提取，登录可见内容需要用户授权的 Cookie。
+
 ### 2. 本地视频快捷入库
 
 用户给出 `.mp4/.mov/.mkv/.webm/.avi` 等本地视频时，不要下载，直接转录：

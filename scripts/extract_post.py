@@ -50,6 +50,19 @@ def ytdlp_cmd() -> list[str]:
     return [sys.executable, "-m", "yt_dlp"]
 
 
+def run_ytdlp_command(cmd: list[str], timeout: int = 60) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+        cwd=str(SCRIPT_DIR),
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+
+
 def detect_platform(url: str) -> str:
     url_l = url.lower()
     for p, domains in PLATFORM_PATTERNS:
@@ -74,9 +87,7 @@ def extract_with_ytdlp(url: str, platform: str) -> dict | None:
         cmd.extend(["--cookies-from-browser", "chrome"])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60,
-                                cwd=str(SCRIPT_DIR),
-                                env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        result = run_ytdlp_command(cmd)
     except subprocess.TimeoutExpired:
         print("❌ 提取超时")
         return None
@@ -86,9 +97,7 @@ def extract_with_ytdlp(url: str, platform: str) -> dict | None:
         if platform in ("x", "bilibili", "xiaohongshu") and "--cookies-from-browser" in str(cmd):
             print("  Cookie 失败，尝试无 Cookie...")
             cmd2 = [a for a in cmd if a not in ("--cookies-from-browser", "chrome")]
-            result2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=60,
-                                     cwd=str(SCRIPT_DIR),
-                                     env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+            result2 = run_ytdlp_command(cmd2)
             if result2.returncode != 0:
                 print(f"❌ 提取失败: {result2.stderr[:200]}")
                 return None
