@@ -23,6 +23,11 @@ import subprocess, sys, json, re, os, argparse, shutil
 from pathlib import Path
 from urllib.request import urlretrieve
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 SCRIPT_DIR = Path(__file__).parent
 OUTPUT_DIR = SCRIPT_DIR / "extracted_posts"
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -77,12 +82,13 @@ def extract_with_ytdlp(url: str, platform: str) -> dict | None:
         return None
 
     if result.returncode != 0:
-        # Fallback: try without cookies for X (public posts)
-        if platform == "x" and "--cookies-from-browser" in str(cmd):
+        # Fallback: try without cookies for public posts when Chrome Cookie is locked.
+        if platform in ("x", "bilibili", "xiaohongshu") and "--cookies-from-browser" in str(cmd):
             print("  Cookie 失败，尝试无 Cookie...")
             cmd2 = [a for a in cmd if a not in ("--cookies-from-browser", "chrome")]
             result2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=60,
-                                     cwd=str(SCRIPT_DIR))
+                                     cwd=str(SCRIPT_DIR),
+                                     env={**os.environ, "PYTHONIOENCODING": "utf-8"})
             if result2.returncode != 0:
                 print(f"❌ 提取失败: {result2.stderr[:200]}")
                 return None

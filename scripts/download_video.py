@@ -18,6 +18,11 @@ import shutil
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 SCRIPT_DIR = Path(__file__).parent
 OUTPUT_DIR = SCRIPT_DIR / "videos"
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -264,6 +269,37 @@ def download_ytdlp(
     # Parse output to find downloaded file
     output_text = result.stdout + result.stderr
 
+    cookie_failed = (
+        result.returncode != 0
+        and not cookies
+        and cookies_from_browser
+        and platform in ("bilibili", "xiaohongshu", "x")
+        and (
+            "Could not copy Chrome cookie database" in output_text
+            or "Failed to decrypt with DPAPI" in output_text
+            or "could not find chrome cookies database" in output_text
+        )
+    )
+    if cookie_failed:
+        print("  Cookie 读取失败，尝试无 Cookie 下载公开视频...")
+        retry_cmd = []
+        skip_next = False
+        for item in cmd:
+            if skip_next:
+                skip_next = False
+                continue
+            if item == "--cookies-from-browser":
+                skip_next = True
+                continue
+            retry_cmd.append(item)
+        try:
+            result = subprocess.run(retry_cmd, capture_output=True, text=True, timeout=300, cwd=str(SCRIPT_DIR),
+                                    env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+            output_text = result.stdout + result.stderr
+        except subprocess.TimeoutExpired:
+            print("❌ 无 Cookie 下载超时（5分钟）")
+            return None
+
     if result.returncode != 0:
         # Check for common errors
         if " consent" in output_text.lower():
@@ -293,10 +329,15 @@ def download_ytdlp(
             if Path(fpath).exists():
                 downloaded_files.append(Path(fpath))
 
-    # Fallback: find newest mp4 in output dir
+    # Fallback: find newest mp4 in output dir. Avoid glob("[platform]") because
+    # square brackets are special glob characters.
     if not downloaded_files:
-        mp4_files = sorted(OUTPUT_DIR.glob(f"[{platform}]*.mp4"),
-                           key=lambda x: x.stat().st_mtime, reverse=True)
+        prefix = f"[{platform}]_"
+        mp4_files = sorted(
+            [p for p in OUTPUT_DIR.iterdir() if p.is_file() and p.name.startswith(prefix) and p.suffix.lower() == ".mp4"],
+            key=lambda x: x.stat().st_mtime,
+            reverse=True,
+        )
         if mp4_files:
             downloaded_files = [mp4_files[0]]
 
