@@ -1092,7 +1092,7 @@
           <ul>
             <li>投喂内容包含标题、路径、分类、标签、摘要和 AI快速参考。</li>
             <li>默认不复制完整转录，避免上下文过长。</li>
-            <li>需要让 AI 深读长视频时，点击“全文投喂AI”复制完整字幕/转录。</li>
+            <li>需要让 AI 深读长视频时，点击“全文投喂AI”复制完整字幕/转录；需要人工查看时，点击“打开字幕文件”。</li>
           </ul>
         </div>
       </div>
@@ -1882,7 +1882,10 @@ function openNote(id) {
             ${escapeHtml(note.fullTranscriptName || '完整字幕文件')} · ${Number(note.fullTranscriptChars || note.fullTranscript.length).toLocaleString()} 字符
           </div>
         </div>
-        <button class="btn-sm btn-sm-indigo" onclick="event.stopPropagation();copyFullTranscriptForAI('${note.id}')">全文投喂AI</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-sm btn-sm-indigo" onclick="event.stopPropagation();openFullTranscriptFile('${note.id}')">打开字幕文件</button>
+          <button class="btn-sm btn-sm-indigo" onclick="event.stopPropagation();copyFullTranscriptForAI('${note.id}')">全文投喂AI</button>
+        </div>
       </div>
       <code style="display:block;word-break:break-all;opacity:0.75;margin-top:8px;">${escapeHtml(note.fullTranscriptPath || '')}</code>
     </div>` : '';
@@ -2193,6 +2196,33 @@ function copyFullTranscriptForAI(id) {
     return;
   }
   copyTextWithToast(formatFullTranscriptContext(note), '已复制完整字幕投喂包');
+}
+
+function pathToFileUrl(path) {
+  const normalized = String(path || '').replace(/\\/g, '/');
+  if (!normalized) return '';
+  if (/^[A-Za-z]:\//.test(normalized)) return encodeURI('file:///' + normalized);
+  if (normalized.startsWith('/')) return encodeURI('file://' + normalized);
+  return encodeURI(normalized);
+}
+
+function openFullTranscriptFile(id) {
+  const note = NOTES.find(n => n.id === id);
+  if (!note || !note.fullTranscriptPath) {
+    alert('这篇笔记没有完整字幕文件路径。');
+    return;
+  }
+  const fileUrl = pathToFileUrl(note.fullTranscriptPath);
+  try {
+    const opened = window.open(fileUrl, '_blank');
+    if (!opened) throw new Error('popup blocked');
+  } catch(e) {
+    navigator.clipboard.writeText(note.fullTranscriptPath).then(() => {
+      alert('浏览器没有直接打开文件，已复制字幕文件路径。');
+    }).catch(() => {
+      prompt('请手动复制字幕文件路径：', note.fullTranscriptPath);
+    });
+  }
 }
 
 function copyNotesForAI(notes, title) {
