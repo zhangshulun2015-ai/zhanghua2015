@@ -41,6 +41,7 @@ from knowledge_schema import (
     render_index,
     render_schema,
 )
+from transcript_formatter import format_transcript_text
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -424,7 +425,7 @@ def main():
     wiki_dir = vault / DOMAIN_DIR / "wiki"
 
     # 加载数据
-    transcript = Path(args.transcript).read_text(encoding='utf-8').strip()
+    transcript = format_transcript_text(Path(args.transcript).read_text(encoding='utf-8').strip())
     analysis = json.loads(Path(args.analysis).read_text(encoding='utf-8'))
 
     if not transcript:

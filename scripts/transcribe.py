@@ -11,6 +11,7 @@
 import os, sys, subprocess, tempfile, argparse
 from pathlib import Path
 from faster_whisper import WhisperModel
+from transcript_formatter import format_transcript_lines, normalize_spaces
 
 SCRIPT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -18,19 +19,6 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-
-
-SENTENCE_ENDINGS = tuple("。！？!?；;：:.")
-
-
-def normalize_segment_text(text: str) -> str:
-    """Clean a Whisper segment and add light Chinese punctuation when missing."""
-    cleaned = " ".join(text.strip().split())
-    if not cleaned:
-        return ""
-    if cleaned.endswith(SENTENCE_ENDINGS):
-        return cleaned
-    return f"{cleaned}。"
 
 
 def resolve_model_id(model_size: str) -> str:
@@ -107,21 +95,25 @@ def transcribe(video_path: str, output_dir: str | None = None, model_size: str =
 
     lines = []
     for seg in segments:
-        text = normalize_segment_text(seg.text)
+        text = normalize_spaces(seg.text)
         if text:
             lines.append(text)
             print(f"  [{seg.start:.0f}s] {text[:100]}")
 
-    full_text = "\n".join(lines)
+    raw_text = "\n".join(lines)
+    full_text = format_transcript_lines(lines)
 
     os.unlink(tmp.name)
 
     name = video.stem[:50]
     txt_path = out_dir / f"{name}.txt"
     txt_path.write_text(full_text, encoding='utf-8')
+    raw_path = out_dir / f"{name}.raw.txt"
+    raw_path.write_text(raw_text, encoding='utf-8')
 
     print(f"\n[转录] 完成! 时长={info.duration:.0f}s, 文字={len(full_text)}字")
     print(f"  保存: {txt_path}")
+    print(f"  原始分段: {raw_path}")
 
     return full_text
 
