@@ -115,6 +115,26 @@ def extract_with_ytdlp(url: str, platform: str) -> dict | None:
     return data
 
 
+def contains_video_media(data: dict) -> bool:
+    """Return True when yt-dlp metadata says the URL contains a playable video."""
+    if data.get("duration") or data.get("duration_string"):
+        return True
+
+    formats = data.get("formats") or []
+    for fmt in formats:
+        vcodec = fmt.get("vcodec")
+        if vcodec and vcodec != "none":
+            return True
+
+    requested = data.get("requested_formats") or []
+    for fmt in requested:
+        vcodec = fmt.get("vcodec")
+        if vcodec and vcodec != "none":
+            return True
+
+    return False
+
+
 def download_images(image_urls: list[str], post_dir: Path) -> list[str]:
     """下载图片到帖子目录"""
     downloaded = []
@@ -235,6 +255,16 @@ def main():
     if not data:
         print("\n💡 提示: 如果 X 提取失败，尝试关闭 Chrome 后重试（Cookie 锁定问题）")
         sys.exit(1)
+
+    if contains_video_media(data):
+        duration = data.get("duration_string") or data.get("duration") or "未知"
+        title = (data.get("title") or data.get("description") or "").strip()[:120]
+        print("\n⚠️ 已检测到视频媒体，不按图文帖处理。")
+        if title:
+            print(f"   标题: {title}")
+        print(f"   时长: {duration}")
+        print("   请改用: python scripts/download_video.py <URL>")
+        sys.exit(2)
 
     # Step 2: Parse
     extractor = EXTRACTORS.get(platform)

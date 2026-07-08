@@ -96,7 +96,7 @@ python scripts/regenerate_dashboard.py --vault <知识库根路径>
 - 小红书：公开视频可直接使用分享链接下载或提取图文；不强制登录。若 Chrome Cookie 被占用，脚本会自动无 Cookie 重试公开视频。
 - B站：公开视频可直接使用复制链接下载；不强制登录。若 Chrome Cookie 被占用，脚本会自动无 Cookie 重试公开视频。
 - 抖音：已验证可用；部分链接可能弹登录、滑块或风控验证，遇到验证时需要先在浏览器完成。
-- X：已验证可用；公开内容可尝试直接提取，登录可见内容需要用户授权的 Cookie。
+- X：已验证可用；公开内容可尝试直接提取，登录可见内容需要用户授权的 Cookie。处理 X 链接时必须先用 `yt-dlp -J` 或 `download_video.py` 检查 `duration`、`formats`、`subtitles` 等元数据；只要存在视频时长或视频格式，就按视频入库，不要因为提取到缩略图就当作图文帖。
 
 ### 2. 本地视频快捷入库
 
@@ -117,6 +117,8 @@ python scripts/regenerate_dashboard.py --vault "<知识库根路径>"
 ```bash
 python scripts/extract_post.py <URL>
 ```
+
+`extract_post.py` 会检查 yt-dlp 元数据；如果发现链接实际包含视频，会停止并提示改用 `download_video.py`，避免把 X 长视频误判成图片帖。
 
 然后读取 `extraction.json` 做 AI 深度分析，生成 `analysis.json`，再走导出和刷新 Dashboard。
 
