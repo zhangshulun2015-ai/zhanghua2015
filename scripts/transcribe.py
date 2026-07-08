@@ -14,6 +14,24 @@ from faster_whisper import WhisperModel
 
 SCRIPT_ROOT = Path(__file__).resolve().parent.parent
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+
+SENTENCE_ENDINGS = tuple("。！？!?；;：:.")
+
+
+def normalize_segment_text(text: str) -> str:
+    """Clean a Whisper segment and add light Chinese punctuation when missing."""
+    cleaned = " ".join(text.strip().split())
+    if not cleaned:
+        return ""
+    if cleaned.endswith(SENTENCE_ENDINGS):
+        return cleaned
+    return f"{cleaned}。"
+
 
 def resolve_model_id(model_size: str) -> str:
     """Use a configured local model path, otherwise let faster-whisper resolve the cache."""
@@ -76,10 +94,10 @@ def transcribe(video_path: str, output_dir: str | None = None, model_size: str =
             "-vn", "-acodec", "pcm_s16le",
             "-ar", "16000", "-ac", "1",
             tmp.name
-        ], capture_output=True, check=True)
+        ], capture_output=True, text=True, encoding="utf-8", errors="replace", check=True)
         print("  OK")
     except subprocess.CalledProcessError as e:
-        print(f"  ❌ ffmpeg 错误: {e.stderr.decode()[:200]}")
+        print(f"  ❌ ffmpeg 错误: {str(e.stderr)[:200]}")
         os.unlink(tmp.name)
         raise
 
@@ -89,12 +107,12 @@ def transcribe(video_path: str, output_dir: str | None = None, model_size: str =
 
     lines = []
     for seg in segments:
-        text = seg.text.strip()
+        text = normalize_segment_text(seg.text)
         if text:
             lines.append(text)
             print(f"  [{seg.start:.0f}s] {text[:100]}")
 
-    full_text = "".join(lines)
+    full_text = "\n".join(lines)
 
     os.unlink(tmp.name)
 
