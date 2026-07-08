@@ -415,6 +415,11 @@ def main():
     parser.add_argument("--vault", default=None, help="Obsidian 仓库根路径；未提供时读取 VIDEO_KNOWLEDGE_VAULT 或 config.json")
     parser.add_argument("--analysis", required=True, help="AI 分析结果 JSON 文件")
     parser.add_argument("--video", default="", help="本地视频路径")
+    parser.add_argument(
+        "--format-transcript",
+        action="store_true",
+        help="导出前重新自动断句。默认关闭，用于保留已整理稿或 AI 语义校对稿。",
+    )
     args = parser.parse_args()
 
     vault = resolve_vault_path(args.vault)
@@ -425,7 +430,9 @@ def main():
     wiki_dir = vault / DOMAIN_DIR / "wiki"
 
     # 加载数据
-    transcript = format_transcript_text(Path(args.transcript).read_text(encoding='utf-8').strip())
+    transcript = Path(args.transcript).read_text(encoding='utf-8').strip()
+    if args.format_transcript:
+        transcript = format_transcript_text(transcript)
     analysis = json.loads(Path(args.analysis).read_text(encoding='utf-8'))
 
     if not transcript:

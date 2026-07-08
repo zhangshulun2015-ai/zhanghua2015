@@ -55,7 +55,7 @@ def looks_like_question(text: str) -> bool:
 
 
 def add_terminal_punctuation(text: str) -> str:
-    cleaned = normalize_spaces(text)
+    cleaned = normalize_spaces(text).rstrip("，,、；;：:")
     if not cleaned:
         return ""
     if cleaned.endswith(SENTENCE_ENDINGS):
