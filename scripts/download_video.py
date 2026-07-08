@@ -11,6 +11,7 @@ import sys
 import re
 import json
 import os
+import asyncio
 import urllib.request
 import subprocess
 import argparse
@@ -49,6 +50,20 @@ def detect_platform(url: str) -> str:
 
 async def download_douyin(url: str, output_name: str | None = None) -> str | None:
     from playwright.async_api import async_playwright
+
+    if "v.douyin.com" in url.lower():
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                resolved = resp.geturl()
+            if resolved:
+                print(f"[抖音] 短链已展开: {resolved[:100]}")
+                url = resolved
+        except Exception as e:
+            print(f"  ⚠️ 短链展开失败，继续尝试原链接: {e}")
 
     # Extract video ID from URL
     vid_match = re.search(r'(?:video/|modal_id=)(\d+)', url)

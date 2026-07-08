@@ -42,6 +42,11 @@ from knowledge_schema import (
     render_schema,
 )
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ffmpeg 路径（自动检测）
 FFMPEG = shutil.which("ffmpeg")
 
@@ -102,7 +107,7 @@ def generate_thumbnail(video_file: Path) -> Path | None:
             [FFMPEG, "-y", "-ss", "1", "-i", str(video_file),
              "-frames:v", "1", "-q:v", "5", "-vf", "scale=640:-1",
              str(thumb)],
-            capture_output=True, text=True, timeout=30
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
         )
         if thumb.exists() and thumb.stat().st_size > 0:
             print(f"  ✅ 缩略图: {thumb.name}")
