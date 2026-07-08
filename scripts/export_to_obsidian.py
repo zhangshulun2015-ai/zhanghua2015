@@ -2,7 +2,7 @@
 导出分析结果到 Obsidian — Karpathy LLM Wiki 架构，多平台支持。
 
 === 支持平台 ===
-抖音 / B站 / 小红书 / YouTube / X (Twitter)
+抖音 / B站 / 小红书 / X (Twitter)
 
 Usage:
   python export_to_obsidian.py transcript.txt \
@@ -25,7 +25,7 @@ analysis.json 格式:
   "cross_refs": ["相关笔记路径"],
   "link": "源链接",
   "duration": "时长",
-  "source_type": "douyin|bilibili|xiaohongshu|youtube|x"
+  "source_type": "douyin|bilibili|xiaohongshu|x"
 }
 """
 import os, sys, shutil, argparse, json, re, subprocess
@@ -49,7 +49,6 @@ PLATFORM_LABELS = {
     "douyin": "抖音",
     "bilibili": "B站",
     "xiaohongshu": "小红书",
-    "youtube": "YouTube",
     "x": "X",
 }
 
@@ -57,7 +56,6 @@ SOURCE_LABELS = {
     "douyin": "抖音链接",
     "bilibili": "B站链接",
     "xiaohongshu": "小红书链接",
-    "youtube": "YouTube链接",
     "x": "X链接",
 }
 

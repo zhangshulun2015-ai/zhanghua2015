@@ -1,5 +1,5 @@
 """
-统一视频下载器 — 支持 抖音 / B站 / YouTube / X(Twitter) / 小红书
+统一视频下载器 — 支持 抖音 / B站 / X(Twitter) / 小红书
 
 用法:
   python download_video.py <URL>
@@ -10,6 +10,7 @@
 import sys
 import re
 import json
+import os
 import urllib.request
 import subprocess
 import argparse
@@ -30,7 +31,6 @@ def detect_platform(url: str) -> str:
         ("douyin",    ["douyin.com", "v.douyin.com", "iesdouyin.com"]),
         ("bilibili",  ["bilibili.com", "b23.tv"]),
         ("xiaohongshu", ["xiaohongshu.com", "xhslink.com"]),
-        ("youtube",   ["youtube.com", "youtu.be"]),
         ("x",         ["x.com", "twitter.com", "t.co"]),
     ]
     for platform, domains in patterns:
@@ -175,7 +175,7 @@ def _download_http(video_url: str, output_path: Path, referer: str = "") -> str 
         return None
 
 
-# ---- yt-dlp platforms (B站 / 小红书 / YouTube / X) ----
+# ---- yt-dlp platforms (B站 / 小红书 / X) ----
 
 
 def ytdlp_cmd() -> list[str]:
@@ -197,10 +197,6 @@ YTDLP_PLATFORM_CONFIG = {
         "name": "小红书",
         "extra_args": [],
     },
-    "youtube": {
-        "name": "YouTube",
-        "extra_args": ["--format", "bestvideo[height<=1080]+bestaudio/best[height<=1080]"],
-    },
     "x": {
         "name": "X",
         "extra_args": [],
@@ -208,10 +204,16 @@ YTDLP_PLATFORM_CONFIG = {
 }
 
 
-def download_ytdlp(url: str, platform: str, output_name: str | None = None) -> str | None:
+def download_ytdlp(
+    url: str,
+    platform: str,
+    output_name: str | None = None,
+    proxy: str | None = None,
+    cookies: str | None = None,
+    cookies_from_browser: str | None = "chrome",
+) -> str | None:
     """使用 yt-dlp 下载视频"""
     import hashlib
-    import os
 
     config = YTDLP_PLATFORM_CONFIG.get(platform, {})
     platform_name = config.get("name", platform)
@@ -232,16 +234,26 @@ def download_ytdlp(url: str, platform: str, output_name: str | None = None) -> s
         *ytdlp_cmd(),
         url,
         "-o", output_template,
-        "--cookies-from-browser", "chrome",
         "--no-playlist",
         "--merge-output-format", "mp4",
         "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     ] + extra_args
 
+    if cookies:
+        cmd.extend(["--cookies", cookies])
+    elif cookies_from_browser:
+        cmd.extend(["--cookies-from-browser", cookies_from_browser])
+
+    proxy = proxy or os.environ.get("YTDLP_PROXY")
+    if proxy:
+        cmd.extend(["--proxy", proxy])
+
     # Remove empty extra_args
     cmd = [a for a in cmd if a]
 
-    print(f"  命令: yt-dlp -o '{output_template}' [cookies from chrome]")
+    auth_hint = f"cookies={cookies}" if cookies else f"cookies from {cookies_from_browser or 'none'}"
+    proxy_hint = f", proxy={proxy}" if proxy else ""
+    print(f"  命令: yt-dlp -o '{output_template}' [{auth_hint}{proxy_hint}]")
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, cwd=str(SCRIPT_DIR),
                                 env={**os.environ, "PYTHONIOENCODING": "utf-8"})
@@ -255,7 +267,7 @@ def download_ytdlp(url: str, platform: str, output_name: str | None = None) -> s
     if result.returncode != 0:
         # Check for common errors
         if " consent" in output_text.lower():
-            print("⚠️ YouTube 需要确认 Cookie 同意 — 请在 Chrome 中先访问 youtube.com")
+            print("⚠️ 平台需要确认 Cookie 同意 — 请先在 Chrome 中访问对应网站")
         if "login" in output_text.lower() or "sign in" in output_text.lower():
             print(f"⚠️ {platform_name} 需要登录 — 请确保 Chrome 已登录{platform_name}")
         if "Private video" in output_text or "private" in output_text.lower():
@@ -302,9 +314,16 @@ def download_ytdlp(url: str, platform: str, output_name: str | None = None) -> s
 # ---- Main entry ----
 
 def main():
-    parser = argparse.ArgumentParser(description="统一视频下载器 — 抖音/B站/小红书/YouTube/X")
+    parser = argparse.ArgumentParser(description="统一视频下载器 — 抖音/B站/小红书/X")
     parser.add_argument("url", help="视频URL")
     parser.add_argument("--output", "-o", default=None, help="自定义输出文件名（不含扩展名）")
+    parser.add_argument("--proxy", default=None, help="yt-dlp 代理，例如 http://127.0.0.1:7890")
+    parser.add_argument("--cookies", default=None, help="Netscape cookies.txt 文件路径，适合 X 等必须登录的平台")
+    parser.add_argument(
+        "--cookies-from-browser",
+        default="chrome",
+        help="从浏览器读取 Cookie，默认 chrome；如 DPAPI 解密失败，请改用 --cookies cookies.txt",
+    )
     args = parser.parse_args()
 
     url = args.url.strip()
@@ -319,11 +338,18 @@ def main():
     if platform == "douyin":
         import asyncio
         result = asyncio.run(download_douyin(url, args.output))
-    elif platform in ("bilibili", "xiaohongshu", "youtube", "x"):
-        result = download_ytdlp(url, platform, args.output)
+    elif platform in ("bilibili", "xiaohongshu", "x"):
+        result = download_ytdlp(
+            url,
+            platform,
+            args.output,
+            proxy=args.proxy,
+            cookies=args.cookies,
+            cookies_from_browser=args.cookies_from_browser,
+        )
     else:
         print(f"❌ 无法识别平台: {url}")
-        print("   支持的平台: 抖音(douyin.com), B站(bilibili.com), 小红书(xiaohongshu.com), YouTube(youtube.com), X(x.com)")
+        print("   支持的平台: 抖音(douyin.com), B站(bilibili.com), 小红书(xiaohongshu.com), X(x.com)")
         sys.exit(1)
 
     if result:

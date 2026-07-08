@@ -1,7 +1,7 @@
 """
 图文帖子提取器 — 处理没有视频的图文内容
 
-支持: X (文字+图片) / 小红书 / B站专栏 / YouTube 视频描述
+支持: X (文字+图片) / 小红书 / B站专栏
 
 用法:
   python extract_post.py <URL>
@@ -31,7 +31,6 @@ PLATFORM_PATTERNS = [
     ("x",         ["x.com", "twitter.com", "t.co"]),
     ("xiaohongshu",["xiaohongshu.com", "xhslink.com"]),
     ("bilibili",   ["bilibili.com", "b23.tv"]),
-    ("youtube",    ["youtube.com", "youtu.be"]),
     ("douyin",     ["douyin.com", "v.douyin.com"]),
 ]
 
@@ -189,28 +188,10 @@ def extract_xiaohongshu(data: dict) -> dict:
     }
 
 
-def extract_youtube(data: dict) -> dict:
-    """解析 YouTube 视频描述 JSON"""
-    return {
-        "title": data.get("title", "Untitled")[:120],
-        "text": data.get("description", ""),
-        "images": [data.get("thumbnail", "")] if data.get("thumbnail") else [],
-        "author": data.get("uploader", ""),
-        "platform": "youtube",
-        "url": data.get("webpage_url", ""),
-        "date": data.get("upload_date", ""),
-        "stats": {
-            "views": data.get("view_count", 0),
-            "likes": data.get("like_count", 0),
-        },
-    }
-
-
 EXTRACTORS = {
     "x": extract_x,
     "bilibili": extract_bilibili,
     "xiaohongshu": extract_xiaohongshu,
-    "youtube": extract_youtube,
     "douyin": extract_x,  # 类似 X
 }
 

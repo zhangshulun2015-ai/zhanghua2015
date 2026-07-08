@@ -2,7 +2,7 @@
 重新生成知识库 Dashboard (index.html) — 多平台图文视频知识库
 
 读取 wiki/ 下所有分类目录的 Markdown 笔记，生成可搜索/过滤的知识浏览页面。
-支持抖音/B站/小红书/YouTube/X 多平台来源。
+支持抖音/B站/小红书/X 多平台来源。
 
 用法:
   python regenerate_dashboard.py --vault <你的知识库路径>
@@ -25,7 +25,6 @@ SOURCE_BADGES = {
     "douyin": "🎵 抖音",
     "bilibili": "📺 B站",
     "xiaohongshu": "📕 小红书",
-    "youtube": "▶️ YouTube",
     "x": "🐦 X",
     "manual": "✍️ 手动",
     "pdf": "📄 PDF",
