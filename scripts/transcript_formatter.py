@@ -103,7 +103,7 @@ def best_cut_position(text: str, max_chars: int) -> int:
             best = idx + 1
     if best > search_start:
         return best
-    return search_end
+    return len(text)
 
 
 def split_long_chunk(text: str, max_chars: int = 56) -> list[str]:
