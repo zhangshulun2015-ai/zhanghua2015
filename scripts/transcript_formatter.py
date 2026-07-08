@@ -11,6 +11,7 @@ import re
 
 
 SENTENCE_ENDINGS = tuple("。！？!?；;：:.")
+EDGE_PUNCTUATION = " \t\r\n，,、；;：:。！？!?."
 QUESTION_HINTS = [
     "吗", "呢", "为什么", "怎么", "怎样", "如何", "什么", "哪个", "哪一个",
     "哪种", "哪类", "是不是", "能不能", "要不要", "难道", "对吧", "对不对",
@@ -117,10 +118,10 @@ def split_long_chunk(text: str, max_chars: int = 56) -> list[str]:
     rest = cleaned
     while len(rest) > max_chars:
         cut = best_cut_position(rest, max_chars)
-        chunk = rest[:cut].strip(" ，,、；;：:")
+        chunk = rest[:cut].strip(EDGE_PUNCTUATION)
         if chunk:
             parts.append(add_terminal_punctuation(chunk))
-        rest = rest[cut:].strip()
+        rest = rest[cut:].strip(EDGE_PUNCTUATION)
 
     if rest:
         parts.append(add_terminal_punctuation(rest))
